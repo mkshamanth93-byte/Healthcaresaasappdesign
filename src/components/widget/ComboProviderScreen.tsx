@@ -75,7 +75,7 @@ export function ComboProviderScreen({ onContinue, onBack, isActive }: ComboProvi
         <div className="space-y-2">
           <div className="flex items-center gap-2 mb-2" style={{ color: 'var(--booking-primary)' }}>
             <Layers className="w-5 h-5" />
-            <span className="text-sm">Combo Appointment</span>
+            <span className="text-sm">Complete Appointment</span>
           </div>
           <h2 className="text-2xl text-gray-900">Select Providers</h2>
           <p className="text-base text-gray-500">

@@ -66,7 +66,7 @@ export function WelcomeScreen({ onContinue, onClose, isActive }: WelcomeScreenPr
     },
     {
       id: 'combo' as const,
-      title: 'Combo Visit',
+      title: 'Complete Visit',
       description: 'Exam + Cleaning',
       icon: Layers,
       badge: 'Popular'

@@ -38,8 +38,20 @@ export function TopBar({
       parts.push(locationNames[bookingData.location] || bookingData.location);
     }
     
+    // Family booking logic - Check BOTH old and new field names
+    if (bookingData.familyAppointmentType || bookingData.appointmentType) {
+      const appointmentType = bookingData.familyAppointmentType || bookingData.appointmentType;
+      const isExam = appointmentType === 'exam-all';
+      const appointmentLabel = isExam ? 'Exam for all' : 'Hygiene for all';
+      const depositPerPerson = 50; // £50 per patient
+      const patientCount = bookingData.familyPatientCount || bookingData.patientCount || 1;
+      const totalDeposit = depositPerPerson * patientCount;
+      
+      parts.push(`${appointmentLabel}`);
+      parts.push(`£${totalDeposit} deposit`);
+    }
     // Procedure or Combo type
-    if (isComboFlow) {
+    else if (isComboFlow) {
       parts.push('Exam + Hygiene');
       // Add deposit for combo flow
       parts.push('£50 + £50 deposit');
@@ -61,14 +73,16 @@ export function TopBar({
       const examName = providerNames[bookingData.comboProviders.examProvider] || bookingData.comboProviders.examProvider;
       const hygieneName = providerNames[bookingData.comboProviders.hygienist] || bookingData.comboProviders.hygienist;
       parts.push(`${examName} + ${hygieneName}`);
-    } else if (bookingData.provider) {
+    } else if (bookingData.provider || bookingData.familyProvider) {
       const providerNames: Record<string, string> = {
         'johnson': 'Dr. Johnson',
         'roberts': 'Dr. Roberts',
         'chen': 'Dr. Chen',
-        'any': 'Any Provider'
+        'any': 'Any Provider',
+        'no-preference': 'Any Provider'
       };
-      parts.push(providerNames[bookingData.provider] || bookingData.provider);
+      const providerId = bookingData.provider || bookingData.familyProvider;
+      parts.push(providerNames[providerId] || providerId);
     }
     
     // Date/Time

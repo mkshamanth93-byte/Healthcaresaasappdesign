@@ -161,7 +161,7 @@ export function DateTimeScreen({ onContinue, onBack, isActive, isCombo, comboPro
           {isCombo && (
             <div className="flex items-center gap-2 mb-2" style={{ color: 'var(--booking-primary)' }}>
               <Layers className="w-5 h-5" />
-              <span className="text-sm">Combo Appointment</span>
+              <span className="text-sm">Complete Appointment</span>
             </div>
           )}
           <h2 className="text-2xl text-gray-900">Date & Time</h2>

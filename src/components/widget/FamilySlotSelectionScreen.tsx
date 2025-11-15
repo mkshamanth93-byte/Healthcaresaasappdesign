@@ -1,622 +1,640 @@
-import { useState } from 'react';
-import { Calendar, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, MapPin, Users, Stethoscope, User } from 'lucide-react';
-import { Card, CardContent } from '../ui/card';
-import { Badge } from '../ui/badge';
+import { useState, useEffect } from 'react';
+import { Calendar, ChevronDown, ChevronUp, Plus, ChevronRight, ChevronLeft } from 'lucide-react';
+import { TopBar } from './TopBar';
+import { SummaryPopup } from './SummaryPopup';
 
 interface FamilySlotSelectionScreenProps {
   onContinue: (data: any) => void;
   onBack: () => void;
+  onClose: () => void;
   isActive: boolean;
   appointmentType: 'exam-all' | 'hygiene-all';
   patientCount: number;
   location: string;
   providerId: string;
+  bookingData: any;
 }
 
-interface DayAvailability {
+interface TimeSlot {
+  time: string;
+}
+
+interface DateSlots {
   date: Date;
-  availableSlots: number;
-  hasEnoughSlots: boolean;
+  slots: {
+    morning: TimeSlot[];
+    afternoon: TimeSlot[];
+    evening: TimeSlot[];
+  };
+  totalSlots: number;
+}
+
+interface NoAvailabilityRange {
+  startDate: Date;
+  endDate: Date;
+}
+
+interface SelectedSlot {
+  date: Date;
+  time: string;
 }
 
 export function FamilySlotSelectionScreen({ 
   onContinue, 
   onBack, 
+  onClose,
   isActive,
   appointmentType,
   patientCount,
   location,
-  providerId
+  providerId,
+  bookingData
 }: FamilySlotSelectionScreenProps) {
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedTimeSlots, setSelectedTimeSlots] = useState<string[]>([]);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [showDetails, setShowDetails] = useState(false);
-
-  // Mock provider names
-  const providerNames: Record<string, string> = {
-    'johnson': 'Dr. Sarah Johnson',
-    'roberts': 'Dr. Michael Roberts',
-    'chen': 'Dr. Lisa Chen',
-    'williams': 'Sarah Williams',
-    'davis': 'Mike Davis',
-    'taylor': 'Emily Taylor'
-  };
-
-  const locationNames: Record<string, string> = {
-    'downtown': 'Downtown',
-    'westside': 'Westside',
-    'eastside': 'Eastside'
-  };
-
-  // Generate calendar data with smart availability
-  const generateCalendarDays = (): DayAvailability[] => {
-    const days: DayAvailability[] = [];
+  const [selectedSlots, setSelectedSlots] = useState<SelectedSlot[]>([]);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [currentCalendarMonth, setCurrentCalendarMonth] = useState(new Date());
+  const [expandedDates, setExpandedDates] = useState<Record<string, boolean>>({});
+  const [showSummaryPopup, setShowSummaryPopup] = useState(false);
+  
+  // Mock data - Generate slots with gaps (like Dentally)
+  const generateMockSlots = (): { slots: DateSlots[], noAvailabilityRanges: NoAvailabilityRange[] } => {
+    const slots: DateSlots[] = [];
+    const noAvailabilityRanges: NoAvailabilityRange[] = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
-    // Generate next 42 days (6 weeks) for calendar grid
-    for (let i = 0; i < 42; i++) {
-      const date = new Date(today);
-      date.setDate(date.getDate() + i);
-
-      // Skip past dates
-      if (date < today) continue;
-
-      // Skip Sundays
-      if (date.getDay() === 0) {
-        days.push({
-          date,
-          availableSlots: 0,
-          hasEnoughSlots: false
-        });
-        continue;
-      }
-
-      // Smart availability logic
-      // More slots available on weekdays, fewer on Saturdays
-      const isSaturday = date.getDay() === 6;
-      const baseSlots = isSaturday ? 3 : 8;
-      
-      // Randomize availability (70% chance of having enough slots)
-      const randomFactor = Math.random();
-      const availableSlots = randomFactor > 0.3 
-        ? Math.floor(Math.random() * 3) + patientCount // Has enough
-        : Math.floor(Math.random() * (patientCount - 1)) + 1; // Not enough
-
-      days.push({
-        date,
-        availableSlots: Math.min(availableSlots, baseSlots),
-        hasEnoughSlots: availableSlots >= patientCount
-      });
-    }
-
-    return days;
-  };
-
-  const calendarDays = generateCalendarDays();
-
-  // Get days for current month view
-  const getMonthDays = () => {
-    const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-    const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
     
-    const days: (DayAvailability | null)[] = [];
-    
-    // Add empty slots for days before month starts
-    const firstDayOfWeek = firstDay.getDay();
-    for (let i = 0; i < firstDayOfWeek; i++) {
-      days.push(null);
-    }
-    
-    // Add actual days
-    const monthDays = calendarDays.filter(day => {
-      return day.date.getMonth() === currentMonth.getMonth() &&
-             day.date.getFullYear() === currentMonth.getFullYear();
+    // Available: Nov 18
+    const date1 = new Date(today);
+    date1.setDate(today.getDate() + 3);
+    slots.push({
+      date: date1,
+      slots: {
+        morning: [
+          { time: '9:00 AM' },
+          { time: '9:30 AM' },
+          { time: '10:00 AM' },
+          { time: '10:30 AM' },
+          { time: '11:00 AM' },
+          { time: '11:30 AM' },
+        ],
+        afternoon: [
+          { time: '12:00 PM' },
+          { time: '1:00 PM' },
+          { time: '2:00 PM' },
+          { time: '3:00 PM' },
+          { time: '4:00 PM' },
+        ],
+        evening: [
+          { time: '5:00 PM' },
+          { time: '5:30 PM' },
+          { time: '6:00 PM' },
+        ]
+      },
+      totalSlots: 14
     });
     
-    days.push(...monthDays);
-    
-    return days;
-  };
-
-  const monthDays = getMonthDays();
-
-  const handleDateSelect = (day: DayAvailability) => {
-    if (day.hasEnoughSlots) {
-      setSelectedDate(day.date);
-      setSelectedTimeSlots([]); // Reset time slots when date changes
-    }
-  };
-
-  const handleContinue = () => {
-    if (selectedDate && selectedTimeSlots.length > 0) {
-      onContinue({
-        selectedDate: selectedDate.toISOString(),
-        selectedTimeSlots: selectedTimeSlots,
-      });
-    }
-  };
-
-  const nextMonth = () => {
-    const next = new Date(currentMonth);
-    next.setMonth(next.getMonth() + 1);
-    setCurrentMonth(next);
-  };
-
-  const prevMonth = () => {
-    const prev = new Date(currentMonth);
-    prev.setMonth(prev.getMonth() - 1);
-    const today = new Date();
-    // Don't go before current month
-    if (prev >= new Date(today.getFullYear(), today.getMonth(), 1)) {
-      setCurrentMonth(prev);
-    }
-  };
-
-  const formatDate = (date: Date) => {
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long',
-      month: 'long', 
-      day: 'numeric',
-      year: 'numeric'
+    // Not working: Nov 19
+    noAvailabilityRanges.push({
+      startDate: new Date(date1.getFullYear(), date1.getMonth(), date1.getDate() + 1),
+      endDate: new Date(date1.getFullYear(), date1.getMonth(), date1.getDate() + 1)
     });
-  };
-
-  const canContinue = selectedDate !== null && selectedTimeSlots.length === patientCount;
-
-  const isExamType = appointmentType === 'exam-all';
-
-  // Generate available time slots for selected date
-  const generateTimeSlots = () => {
-    if (!selectedDate) return { morning: [], afternoon: [], evening: [] };
-
-    // Individual 30-minute slots
-    const morningTimes = ['8:00 AM', '8:30 AM', '9:00 AM', '9:30 AM', '10:00 AM', '10:30 AM', '11:00 AM', '11:30 AM'];
-    const afternoonTimes = ['12:00 PM', '12:30 PM', '1:00 PM', '1:30 PM', '2:00 PM', '2:30 PM', '3:00 PM', '3:30 PM'];
-    const eveningTimes = ['4:00 PM', '4:30 PM', '5:00 PM', '5:30 PM', '6:00 PM', '6:30 PM', '7:00 PM'];
-
-    const createSlots = (times: string[]) => {
-      return times.map((time, index) => ({
-        id: time,
-        time: time,
-        isAvailable: Math.random() > 0.2 // 80% available
-      }));
-    };
-
-    return {
-      morning: createSlots(morningTimes),
-      afternoon: createSlots(afternoonTimes),
-      evening: createSlots(eveningTimes)
-    };
-  };
-
-  const timeSlots = generateTimeSlots();
-
-  const handleTimeSlotClick = (slotId: string, isAvailable: boolean) => {
-    if (!isAvailable) return;
-
-    const isSelected = selectedTimeSlots.includes(slotId);
     
-    if (isSelected) {
-      // Deselect
-      setSelectedTimeSlots(selectedTimeSlots.filter(id => id !== slotId));
+    // Available: Nov 20
+    const date2 = new Date(today);
+    date2.setDate(today.getDate() + 5);
+    slots.push({
+      date: date2,
+      slots: {
+        morning: [
+          { time: '9:00 AM' },
+          { time: '9:30 AM' },
+          { time: '10:00 AM' },
+          { time: '10:30 AM' },
+          { time: '11:00 AM' },
+        ],
+        afternoon: [
+          { time: '12:00 PM' },
+          { time: '1:00 PM' },
+          { time: '2:00 PM' },
+          { time: '3:00 PM' },
+        ],
+        evening: [
+          { time: '5:00 PM' },
+          { time: '5:30 PM' },
+        ]
+      },
+      totalSlots: 12
+    });
+    
+    // Not available: Nov 21 - Nov 30
+    noAvailabilityRanges.push({
+      startDate: new Date(date2.getFullYear(), date2.getMonth(), date2.getDate() + 1),
+      endDate: new Date(date2.getFullYear(), date2.getMonth(), date2.getDate() + 10)
+    });
+    
+    // Available: Dec 4
+    const date3 = new Date(today);
+    date3.setDate(today.getDate() + 16);
+    slots.push({
+      date: date3,
+      slots: {
+        morning: [
+          { time: '9:00 AM' },
+          { time: '9:30 AM' },
+          { time: '10:00 AM' },
+          { time: '10:30 AM' },
+        ],
+        afternoon: [
+          { time: '12:00 PM' },
+          { time: '1:00 PM' },
+          { time: '2:00 PM' },
+        ],
+        evening: [
+          { time: '5:00 PM' },
+        ]
+      },
+      totalSlots: 8
+    });
+    
+    return { slots, noAvailabilityRanges };
+  };
+
+  const { slots: availableDates, noAvailabilityRanges } = generateMockSlots();
+
+  // Check if a slot is selected
+  const isSlotSelected = (date: Date, time: string) => {
+    return selectedSlots.some(slot => 
+      slot.date.toDateString() === date.toDateString() && slot.time === time
+    );
+  };
+
+  // Get the locked date (if any slots are selected)
+  const getLockedDate = (): Date | null => {
+    if (selectedSlots.length === 0) return null;
+    return selectedSlots[0].date;
+  };
+
+  // Check if a date is the locked date
+  const isDateLocked = (date: Date): boolean => {
+    const lockedDate = getLockedDate();
+    if (!lockedDate) return false;
+    return date.toDateString() !== lockedDate.toDateString();
+  };
+
+  // Handle slot selection (multi-select)
+  const handleSlotClick = (date: Date, time: string) => {
+    const alreadySelected = isSlotSelected(date, time);
+    
+    if (alreadySelected) {
+      // Remove the slot
+      setSelectedSlots(selectedSlots.filter(slot => 
+        !(slot.date.toDateString() === date.toDateString() && slot.time === time)
+      ));
     } else {
-      // Select if not at limit
-      if (selectedTimeSlots.length < patientCount) {
-        setSelectedTimeSlots([...selectedTimeSlots, slotId]);
+      // Add the slot if we haven't reached the limit
+      if (selectedSlots.length < patientCount) {
+        setSelectedSlots([...selectedSlots, { date, time }]);
       }
     }
   };
 
-  const hasSlots = timeSlots.morning.length > 0 || timeSlots.afternoon.length > 0 || timeSlots.evening.length > 0;
+  // Auto-advance when all slots are selected
+  useEffect(() => {
+    if (selectedSlots.length === patientCount) {
+      setTimeout(() => {
+        onContinue({
+          selectedDate: selectedSlots[0].date.toISOString(),
+          selectedTimeSlots: selectedSlots.map(slot => slot.time),
+          familyDate: selectedSlots[0].date.toISOString(),
+          familySlots: selectedSlots.map((slot, index) => ({
+            time: slot.time,
+            date: slot.date.toISOString(),
+            patientIndex: index + 1,
+            patientName: `Patient ${index + 1}`
+          }))
+        });
+      }, 300);
+    }
+  }, [selectedSlots, patientCount, onContinue]);
+
+  // Format date header (e.g., "Tue, November 18")
+  const formatDateHeader = (date: Date) => {
+    const options: Intl.DateTimeFormatOptions = { 
+      weekday: 'short', 
+      month: 'long',
+      day: 'numeric' 
+    };
+    return date.toLocaleDateString('en-US', options);
+  };
+
+  // Format date range for no availability
+  const formatNoAvailabilityRange = (startDate: Date, endDate: Date) => {
+    const isSingleDay = startDate.getDate() === endDate.getDate() && 
+                        startDate.getMonth() === endDate.getMonth();
+    
+    if (isSingleDay) {
+      return startDate.toLocaleDateString('en-US', { 
+        weekday: 'short',
+        day: 'numeric',
+        month: 'long'
+      });
+    } else {
+      const startStr = startDate.toLocaleDateString('en-US', { 
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short'
+      });
+      const endStr = endDate.toLocaleDateString('en-US', { 
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short'
+      });
+      return `${startStr} - ${endStr}`;
+    }
+  };
+
+  // Toggle expanded slots for a specific date
+  const toggleExpandedSlots = (dateKey: string) => {
+    setExpandedDates(prev => ({
+      ...prev,
+      [dateKey]: !prev[dateKey]
+    }));
+  };
+
+  // Calendar helper functions
+  const getDaysInMonth = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDayOfWeek = new Date(year, month, 1).getDay();
+    return { daysInMonth, startingDayOfWeek: firstDayOfWeek };
+  };
+
+  const isDateAvailable = (date: Date) => {
+    return availableDates.some(slot => {
+      const slotDate = new Date(slot.date);
+      slotDate.setHours(0, 0, 0, 0);
+      const checkDate = new Date(date);
+      checkDate.setHours(0, 0, 0, 0);
+      return slotDate.getTime() === checkDate.getTime();
+    });
+  };
+
+  const handleCalendarDateClick = (date: Date) => {
+    if (isDateAvailable(date)) {
+      // Scroll to this date in the list
+      const dateKey = date.toISOString();
+      const element = document.getElementById(`date-${dateKey}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      setShowCalendar(false);
+    }
+  };
+
+  // Combine slots and no-availability ranges for rendering
+  const combinedTimeline: Array<{ type: 'slots' | 'noAvailability', data: any }> = [];
+  
+  availableDates.forEach((dateSlot, idx) => {
+    combinedTimeline.push({ type: 'slots', data: dateSlot });
+    
+    // Check if there's a no-availability range after this slot
+    const noAvailRange = noAvailabilityRanges[idx];
+    if (noAvailRange) {
+      combinedTimeline.push({ type: 'noAvailability', data: noAvailRange });
+    }
+  });
 
   return (
-    <div className="flex flex-col h-full" style={{ background: '#f8f9fa' }}>
+    <div className="flex flex-col h-full bg-gray-50">
+      {/* Top Bar */}
+      <TopBar
+        onBack={onBack}
+        onClose={onClose}
+        title={`Select ${patientCount} ${patientCount === 1 ? 'Time' : 'Times'}`}
+        subtitle={`Choose ${patientCount} time ${patientCount === 1 ? 'slot' : 'slots'} for your family members`}
+        bookingData={bookingData}
+        isComboFlow={false}
+        onSummaryClick={() => setShowSummaryPopup(true)}
+      />
+
+      {/* Summary Popup */}
+      <SummaryPopup
+        isOpen={showSummaryPopup}
+        onClose={() => setShowSummaryPopup(false)}
+        bookingData={bookingData}
+        isComboFlow={false}
+        isFamilyFlow={true}
+      />
+
       {/* Scrollable Content */}
-      <div className="flex-1 overflow-y-auto px-5 py-6 space-y-6 pb-6">
-        
-        {/* Header */}
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <div 
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ background: 'var(--booking-primary-light)' }}
-            >
-              <Calendar className="w-5 h-5" style={{ color: 'var(--booking-primary)' }} />
-            </div>
-            <div>
-              <h2 className="text-gray-900">Select Date</h2>
-              <p className="text-xs text-gray-500">Choose a day for your group appointment</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Context Info Card - Collapsible */}
-        <Card className="border-2" style={{ borderColor: 'var(--booking-primary-light)', background: 'white' }}>
-          <CardContent className="p-4">
-            <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <div 
-                  className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ background: 'var(--booking-primary-light)' }}
-                >
-                  <Users className="w-5 h-5" style={{ color: 'var(--booking-primary)' }} />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-xs text-gray-500 mb-1">Group Booking Summary</p>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2 text-sm">
-                          <MapPin className="w-4 h-4 text-gray-400" />
-                          <span className="text-gray-900">{locationNames[location] || location}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <User className="w-4 h-4 text-gray-400" />
-                          <span className="text-gray-900">{providerNames[providerId] || providerId}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <Users className="w-4 h-4 text-gray-400" />
-                          <span className="text-gray-900">{patientCount} {patientCount === 1 ? 'patient' : 'patients'}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setShowDetails(!showDetails)}
-                      className="p-1 transition-all"
-                      style={{ color: 'var(--booking-primary)' }}
-                    >
-                      {showDetails ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Expanded Details */}
-              {showDetails && (
-                <div 
-                  className="pt-3 border-t space-y-2"
-                  style={{ borderColor: 'var(--booking-primary-light)' }}
-                >
-                  <div className="flex items-center gap-2 text-sm">
-                    <Stethoscope className="w-4 h-4 text-gray-400" />
-                    <span className="text-gray-900">{isExamType ? 'Exam' : 'Hygiene'} for all patients</span>
-                  </div>
-                  <div className="p-3 rounded-lg" style={{ background: 'var(--booking-primary-light)' }}>
-                    <p className="text-xs text-gray-600">
-                      We'll find consecutive time slots so all {patientCount} family members can be seen back-to-back with {providerNames[providerId]}.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Calendar */}
-        <div className="space-y-3">
-          <div>
-            <h3 className="text-gray-900 mb-1">Available Dates</h3>
-            <p className="text-xs text-gray-500">Dates with enough consecutive slots are highlighted</p>
-          </div>
-
-          <Card className="border-2" style={{ borderColor: '#e5e7eb', background: 'white' }}>
-            <CardContent className="p-4">
-              {/* Month Navigation */}
-              <div className="flex items-center justify-between mb-4 pb-3 border-b" style={{ borderColor: '#e5e7eb' }}>
-                <button
-                  onClick={prevMonth}
-                  className="p-2 rounded-lg transition-all hover:bg-gray-100"
-                  style={{ color: '#6b7280' }}
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-                <h4 className="text-gray-900">
-                  {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                </h4>
-                <button
-                  onClick={nextMonth}
-                  className="p-2 rounded-lg transition-all hover:bg-gray-100"
-                  style={{ color: '#6b7280' }}
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Day Headers */}
-              <div className="grid grid-cols-7 gap-2 mb-2">
-                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                  <div key={day} className="text-center text-xs text-gray-500 py-2">
-                    {day}
-                  </div>
-                ))}
-              </div>
-
-              {/* Calendar Grid */}
-              <div className="grid grid-cols-7 gap-2">
-                {monthDays.map((day, index) => {
-                  if (!day) {
-                    return <div key={`empty-${index}`} />;
-                  }
-
-                  const isSunday = day.date.getDay() === 0;
-                  const isSelected = selectedDate?.getTime() === day.date.getTime();
-
-                  // If Sunday or not enough slots, show as unavailable
-                  if (isSunday || !day.hasEnoughSlots) {
-                    return (
-                      <div
-                        key={index}
-                        className="aspect-square flex items-center justify-center rounded-lg text-xs text-gray-300"
-                      >
-                        {day.date.getDate()}
-                      </div>
-                    );
-                  }
-
-                  // Available date
-                  return (
-                    <button
-                      key={index}
-                      onClick={() => handleDateSelect(day)}
-                      className="aspect-square flex items-center justify-center rounded-lg text-xs transition-all"
-                      style={{
-                        background: isSelected ? 'var(--booking-primary)' : '#d1fae5',
-                        color: isSelected ? 'white' : '#059669',
-                        border: isSelected ? '2px solid var(--booking-primary)' : '2px solid #86efac'
-                      }}
-                    >
-                      {day.date.getDate()}
-                    </button>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Legend */}
-          <div className="flex flex-wrap gap-3 text-xs">
-            <div className="flex items-center gap-2">
+      <div className="flex-1 overflow-y-auto px-5 pb-8 space-y-4">
+        {/* Selection Progress Indicator */}
+        {selectedSlots.length > 0 && (
+          <div 
+            className="px-4 py-3 rounded-xl flex items-center justify-between mt-4"
+            style={{ background: 'var(--booking-primary-light)' }}
+          >
+            <div className="flex items-center gap-3">
               <div 
-                className="w-6 h-6 rounded-lg" 
-                style={{ background: '#d1fae5' }}
-              />
-              <span className="text-gray-600">Available</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Info Box */}
-        <Card className="border-2" style={{ borderColor: '#e0e7ff', background: '#f0f4ff' }}>
-          <CardContent className="p-4">
-            <p className="text-xs text-gray-600">
-              💡 <strong>Smart Scheduling:</strong> We only show dates where we can book {patientCount} consecutive appointments with your selected provider.
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Time Slot Selection - Shows after date is selected */}
-        {selectedDate && hasSlots && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
+                className="w-8 h-8 rounded-full flex items-center justify-center"
+                style={{ background: 'var(--booking-primary)' }}
+              >
+                <span className="text-white text-sm">{selectedSlots.length}</span>
+              </div>
               <div>
-                <h3 className="text-gray-900 mb-1">Available Time Slots</h3>
-                <p className="text-xs text-gray-500">
-                  Select {patientCount} time {patientCount === 1 ? 'slot' : 'slots'} for your family members
+                <p className="text-sm" style={{ color: 'var(--booking-primary)' }}>
+                  {selectedSlots.length} of {patientCount} slots selected
                 </p>
+                {selectedSlots.length < patientCount && (
+                  <p className="text-xs text-gray-600">
+                    Select {patientCount - selectedSlots.length} more
+                  </p>
+                )}
               </div>
-              {selectedTimeSlots.length > 0 && (
-                <div
-                  className="px-3 py-1.5 rounded-lg"
-                  style={{
-                    background: 'var(--booking-primary-light)',
-                    color: 'var(--booking-primary)'
-                  }}
-                >
-                  <span className="text-xs">{selectedTimeSlots.length} of {patientCount} selected</span>
-                </div>
-              )}
             </div>
-
-            {/* Morning Slots */}
-            {timeSlots.morning.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-xs text-gray-500 px-1">Morning</h4>
-                <div className="grid grid-cols-3 gap-2">
-                  {timeSlots.morning.map((slot) => {
-                    const isSelected = selectedTimeSlots.includes(slot.id);
-                    const isDisabled = !slot.isAvailable || (!isSelected && selectedTimeSlots.length >= patientCount);
-                    
-                    return (
-                      <button
-                        key={slot.id}
-                        onClick={() => handleTimeSlotClick(slot.id, slot.isAvailable)}
-                        disabled={isDisabled}
-                        className={`
-                          p-3 rounded-xl border-2 transition-all text-center
-                          ${isDisabled && !isSelected ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:border-gray-300'}
-                        `}
-                        style={{
-                          background: 'white',
-                          borderColor: isSelected
-                            ? 'var(--booking-primary)'
-                            : '#e5e7eb'
-                        }}
-                      >
-                        <div className="flex items-center justify-center gap-1.5">
-                          <span className="text-xs text-gray-900">{slot.time}</span>
-                          {isSelected && (
-                            <div
-                              className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
-                              style={{ background: 'var(--booking-primary)' }}
-                            >
-                              <svg
-                                className="w-2.5 h-2.5"
-                                fill="white"
-                                viewBox="0 0 20 20"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Afternoon Slots */}
-            {timeSlots.afternoon.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-xs text-gray-500 px-1">Afternoon</h4>
-                <div className="grid grid-cols-3 gap-2">
-                  {timeSlots.afternoon.map((slot) => {
-                    const isSelected = selectedTimeSlots.includes(slot.id);
-                    const isDisabled = !slot.isAvailable || (!isSelected && selectedTimeSlots.length >= patientCount);
-                    
-                    return (
-                      <button
-                        key={slot.id}
-                        onClick={() => handleTimeSlotClick(slot.id, slot.isAvailable)}
-                        disabled={isDisabled}
-                        className={`
-                          p-3 rounded-xl border-2 transition-all text-center
-                          ${isDisabled && !isSelected ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:border-gray-300'}
-                        `}
-                        style={{
-                          background: 'white',
-                          borderColor: isSelected
-                            ? 'var(--booking-primary)'
-                            : '#e5e7eb'
-                        }}
-                      >
-                        <div className="flex items-center justify-center gap-1.5">
-                          <span className="text-xs text-gray-900">{slot.time}</span>
-                          {isSelected && (
-                            <div
-                              className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
-                              style={{ background: 'var(--booking-primary)' }}
-                            >
-                              <svg
-                                className="w-2.5 h-2.5"
-                                fill="white"
-                                viewBox="0 0 20 20"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Evening Slots */}
-            {timeSlots.evening.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-xs text-gray-500 px-1">Evening</h4>
-                <div className="grid grid-cols-3 gap-2">
-                  {timeSlots.evening.map((slot) => {
-                    const isSelected = selectedTimeSlots.includes(slot.id);
-                    const isDisabled = !slot.isAvailable || (!isSelected && selectedTimeSlots.length >= patientCount);
-                    
-                    return (
-                      <button
-                        key={slot.id}
-                        onClick={() => handleTimeSlotClick(slot.id, slot.isAvailable)}
-                        disabled={isDisabled}
-                        className={`
-                          p-3 rounded-xl border-2 transition-all text-center
-                          ${isDisabled && !isSelected ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:border-gray-300'}
-                        `}
-                        style={{
-                          background: 'white',
-                          borderColor: isSelected
-                            ? 'var(--booking-primary)'
-                            : '#e5e7eb'
-                        }}
-                      >
-                        <div className="flex items-center justify-center gap-1.5">
-                          <span className="text-xs text-gray-900">{slot.time}</span>
-                          {isSelected && (
-                            <div
-                              className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0"
-                              style={{ background: 'var(--booking-primary)' }}
-                            >
-                              <svg
-                                className="w-2.5 h-2.5"
-                                fill="white"
-                                viewBox="0 0 20 20"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </div>
         )}
-      </div>
 
-      {/* Bottom Navigation */}
-      <div 
-        className="p-5 border-t flex items-center gap-3"
-        style={{ 
-          background: 'white', 
-          borderColor: '#e5e7eb',
-          boxShadow: '0 -4px 6px -1px rgba(0, 0, 0, 0.05)'
-        }}
-      >
-        <button
-          onClick={onBack}
-          className="p-3 transition-all flex items-center justify-center"
-          style={{
-            background: 'transparent',
-            color: '#6b7280'
-          }}
-        >
-          <ChevronLeft className="w-6 h-6" />
-        </button>
-        
-        <button
-          onClick={handleContinue}
-          disabled={!canContinue}
-          className="flex-1 px-6 py-3.5 rounded-xl transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{
-            background: canContinue 
-              ? 'linear-gradient(135deg, var(--booking-gradient-start) 0%, var(--booking-gradient-end) 100%)'
-              : '#e5e7eb',
-            color: canContinue ? 'white' : '#9ca3af'
-          }}
-        >
-          <span className="flex items-center justify-center gap-2">
-            <span>Continue</span>
-            <ChevronRight className="w-5 h-5" />
-          </span>
-        </button>
+        {/* Calendar Accordion */}
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden mt-4">
+          {/* Calendar Toggle Header */}
+          <button
+            onClick={() => setShowCalendar(!showCalendar)}
+            className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Calendar className="w-5 h-5" style={{ color: 'var(--booking-primary)' }} />
+              <span className="text-sm text-gray-900">
+                {showCalendar ? 'Close Calendar' : 'See Dates Available'}
+              </span>
+            </div>
+            {showCalendar ? (
+              <ChevronUp className="w-5 h-5 text-gray-400" />
+            ) : (
+              <ChevronDown className="w-5 h-5 text-gray-400" />
+            )}
+          </button>
+
+          {/* Calendar Content - Expands inside same tile */}
+          {showCalendar && (
+            <div className="px-4 pb-4 pt-2 border-t border-gray-100">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between mb-3">
+                  <button
+                    onClick={() => {
+                      const newMonth = new Date(currentCalendarMonth);
+                      newMonth.setMonth(newMonth.getMonth() - 1);
+                      setCurrentCalendarMonth(newMonth);
+                    }}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <ChevronLeft className="w-5 h-5 text-gray-600" />
+                  </button>
+                  <h3 className="text-sm text-gray-900">
+                    {currentCalendarMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  </h3>
+                  <button
+                    onClick={() => {
+                      const newMonth = new Date(currentCalendarMonth);
+                      newMonth.setMonth(newMonth.getMonth() + 1);
+                      setCurrentCalendarMonth(newMonth);
+                    }}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  >
+                    <ChevronRight className="w-5 h-5 text-gray-600" />
+                  </button>
+                </div>
+
+                {/* Calendar Grid */}
+                <div className="space-y-2">
+                  <div className="grid grid-cols-7 gap-1 mb-2">
+                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, idx) => (
+                      <div key={idx} className="flex items-center justify-center text-xs text-gray-500 h-8">
+                        {day}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1">
+                    {(() => {
+                      const { daysInMonth, startingDayOfWeek } = getDaysInMonth(currentCalendarMonth);
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      
+                      return (
+                        <>
+                          {[...Array(startingDayOfWeek)].map((_, idx) => (
+                            <div key={`empty-${idx}`} className="w-full aspect-square"></div>
+                          ))}
+                          {[...Array(daysInMonth)].map((_, idx) => {
+                            const day = idx + 1;
+                            const date = new Date(currentCalendarMonth.getFullYear(), currentCalendarMonth.getMonth(), day);
+                            date.setHours(0, 0, 0, 0);
+                            const isAvailable = isDateAvailable(date);
+                            const isPast = date < today;
+                            const isClickable = isAvailable && !isPast;
+
+                            return (
+                              <button
+                                key={day}
+                                disabled={!isClickable}
+                                onClick={() => handleCalendarDateClick(date)}
+                                className={`w-full aspect-square rounded-lg text-xs flex items-center justify-center transition-all ${
+                                  isPast
+                                    ? 'text-gray-300 cursor-not-allowed'
+                                    : isAvailable
+                                    ? 'bg-green-100 text-green-900 hover:bg-green-200 border border-green-200'
+                                    : 'text-gray-400'
+                                }`}
+                              >
+                                {day}
+                              </button>
+                            );
+                          })}
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Legend */}
+                <div className="flex items-center gap-3 pt-3 border-t border-gray-100 text-xs text-gray-600">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 bg-green-100 border border-green-200 rounded"></div>
+                    <span>Available</span>
+                  </div>
+                </div>
+
+                <p className="text-xs text-center text-gray-500 mt-2">
+                  Select a date to jump to it in the list below
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Infinite Scroller - Date Slots with No Availability Ranges */}
+        <div className="space-y-4">
+          {combinedTimeline.map((item, idx) => {
+            if (item.type === 'noAvailability') {
+              const range = item.data as NoAvailabilityRange;
+              return (
+                <div key={`no-avail-${idx}`} className="text-center py-6">
+                  <p className="text-sm text-gray-400 uppercase tracking-wide">
+                    {formatNoAvailabilityRange(range.startDate, range.endDate)}
+                  </p>
+                  <p className="text-sm text-gray-400 mt-1">Not working</p>
+                </div>
+              );
+            }
+
+            // Render date with slots
+            const dateSlot = item.data as DateSlots;
+            const dateKey = dateSlot.date.toISOString();
+            const isExpanded = expandedDates[dateKey] || false;
+            
+            // Check if this date is locked (user selected slots from a different day)
+            const thisDateIsLocked = isDateLocked(dateSlot.date);
+            
+            // Show first 3 slots of each period by default, unless expanded
+            const visibleMorning = isExpanded ? dateSlot.slots.morning : dateSlot.slots.morning.slice(0, 3);
+            const visibleAfternoon = isExpanded ? dateSlot.slots.afternoon : dateSlot.slots.afternoon.slice(0, 3);
+            const visibleEvening = isExpanded ? dateSlot.slots.evening : dateSlot.slots.evening.slice(0, 3);
+            
+            const hasMoreSlots = (
+              dateSlot.slots.morning.length > 3 ||
+              dateSlot.slots.afternoon.length > 3 ||
+              dateSlot.slots.evening.length > 3
+            );
+
+            return (
+              <div key={dateKey} id={`date-${dateKey}`} className="space-y-3 scroll-mt-4">
+                {/* Date Header */}
+                <div className="pt-2">
+                  <h3 className="text-base text-gray-900">
+                    {formatDateHeader(dateSlot.date)}
+                  </h3>
+                  <p className="text-xs text-gray-500">{dateSlot.totalSlots} slots available</p>
+                </div>
+
+                {/* Slot Groups */}
+                <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
+                  {/* Morning */}
+                  {visibleMorning.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-500">Morning</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {visibleMorning.map((slot) => {
+                          const isSelected = isSlotSelected(dateSlot.date, slot.time);
+                          const isDisabled = thisDateIsLocked || (!isSelected && selectedSlots.length >= patientCount);
+                          
+                          return (
+                            <button
+                              key={slot.time}
+                              onClick={() => handleSlotClick(dateSlot.date, slot.time)}
+                              disabled={isDisabled}
+                              className={`px-3 py-2.5 rounded-lg text-sm transition-all ${
+                                isSelected
+                                  ? 'text-white shadow-sm'
+                                  : isDisabled
+                                  ? 'bg-gray-50 border border-gray-200 text-gray-400 cursor-not-allowed opacity-50'
+                                  : 'bg-gray-50 border border-gray-200 text-gray-900 hover:border-gray-300 hover:bg-gray-100'
+                              }`}
+                              style={isSelected ? {
+                                background: 'var(--booking-primary)'
+                              } : undefined}
+                            >
+                              {slot.time}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Afternoon */}
+                  {visibleAfternoon.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-500">Afternoon</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {visibleAfternoon.map((slot) => {
+                          const isSelected = isSlotSelected(dateSlot.date, slot.time);
+                          const isDisabled = thisDateIsLocked || (!isSelected && selectedSlots.length >= patientCount);
+                          
+                          return (
+                            <button
+                              key={slot.time}
+                              onClick={() => handleSlotClick(dateSlot.date, slot.time)}
+                              disabled={isDisabled}
+                              className={`px-3 py-2.5 rounded-lg text-sm transition-all ${
+                                isSelected
+                                  ? 'text-white shadow-sm'
+                                  : isDisabled
+                                  ? 'bg-gray-50 border border-gray-200 text-gray-400 cursor-not-allowed opacity-50'
+                                  : 'bg-gray-50 border border-gray-200 text-gray-900 hover:border-gray-300 hover:bg-gray-100'
+                              }`}
+                              style={isSelected ? {
+                                background: 'var(--booking-primary)'
+                              } : undefined}
+                            >
+                              {slot.time}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Evening */}
+                  {visibleEvening.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-500">Evening</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {visibleEvening.map((slot) => {
+                          const isSelected = isSlotSelected(dateSlot.date, slot.time);
+                          const isDisabled = thisDateIsLocked || (!isSelected && selectedSlots.length >= patientCount);
+                          
+                          return (
+                            <button
+                              key={slot.time}
+                              onClick={() => handleSlotClick(dateSlot.date, slot.time)}
+                              disabled={isDisabled}
+                              className={`px-3 py-2.5 rounded-lg text-sm transition-all ${
+                                isSelected
+                                  ? 'text-white shadow-sm'
+                                  : isDisabled
+                                  ? 'bg-gray-50 border border-gray-200 text-gray-400 cursor-not-allowed opacity-50'
+                                  : 'bg-gray-50 border border-gray-200 text-gray-900 hover:border-gray-300 hover:bg-gray-100'
+                              }`}
+                              style={isSelected ? {
+                                background: 'var(--booking-primary)'
+                              } : undefined}
+                            >
+                              {slot.time}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Show More/Fewer Button */}
+                  {hasMoreSlots && (
+                    <button
+                      onClick={() => toggleExpandedSlots(dateKey)}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
+                      style={{ color: 'var(--booking-primary)' }}
+                    >
+                      <Plus className="w-4 h-4" />
+                      {isExpanded ? 'Show fewer slots' : 'Show more slots'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

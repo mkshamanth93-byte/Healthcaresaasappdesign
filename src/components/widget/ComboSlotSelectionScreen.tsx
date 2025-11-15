@@ -352,7 +352,7 @@ export function ComboSlotSelectionScreen({
                     <button
                       key={slot.time}
                       onClick={() => onSelect(dateSlot.date, slot.time)}
-                      className={`px-3 py-2.5 rounded-lg text-sm transition-all ${
+                      className={`px-3 py-2.5 rounded-lg text-sm transition-all text-center whitespace-nowrap ${
                         isSelected
                           ? 'text-white shadow-sm'
                           : 'bg-gray-50 border border-gray-200 text-gray-900 hover:border-gray-300 hover:bg-gray-100'
@@ -380,7 +380,7 @@ export function ComboSlotSelectionScreen({
                     <button
                       key={slot.time}
                       onClick={() => onSelect(dateSlot.date, slot.time)}
-                      className={`px-3 py-2.5 rounded-lg text-sm transition-all ${
+                      className={`px-3 py-2.5 rounded-lg text-sm transition-all text-center whitespace-nowrap ${
                         isSelected
                           ? 'text-white shadow-sm'
                           : 'bg-gray-50 border border-gray-200 text-gray-900 hover:border-gray-300 hover:bg-gray-100'
@@ -408,7 +408,7 @@ export function ComboSlotSelectionScreen({
                     <button
                       key={slot.time}
                       onClick={() => onSelect(dateSlot.date, slot.time)}
-                      className={`px-3 py-2.5 rounded-lg text-sm transition-all ${
+                      className={`px-3 py-2.5 rounded-lg text-sm transition-all text-center whitespace-nowrap ${
                         isSelected
                           ? 'text-white shadow-sm'
                           : 'bg-gray-50 border border-gray-200 text-gray-900 hover:border-gray-300 hover:bg-gray-100'

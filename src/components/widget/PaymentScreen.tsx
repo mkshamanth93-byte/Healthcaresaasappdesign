@@ -18,6 +18,12 @@ export function PaymentScreen({ onContinue, onBack, onClose, bookingData, isActi
   
   // Handle both old and new family data structures
   const getFamilyPatients = () => {
+    // Returning patient family flow - uses familyMembers directly
+    if (bookingData.familyMembers && Array.isArray(bookingData.familyMembers)) {
+      return bookingData.familyMembers;
+    }
+    
+    // New patient family flow - uses familyContactInfo
     if (bookingData.familyContactInfo) {
       // For "Family Only", exclude the booker (primaryPatient) from the patient list
       if (isFamilyOnly) {
@@ -30,6 +36,8 @@ export function PaymentScreen({ onContinue, onBack, onClose, bookingData, isActi
       }
       return patients;
     }
+    
+    // Fallback
     return bookingData.patients || [];
   };
   
@@ -434,7 +442,7 @@ export function PaymentScreen({ onContinue, onBack, onClose, bookingData, isActi
       <BottomCTA
         onContinue={handleContinue}
         onBack={onBack}
-        continueText="Complete Booking"
+        continueText="Pay"
         showLockIcon={true}
         depositAmount={totalDeposit}
       />

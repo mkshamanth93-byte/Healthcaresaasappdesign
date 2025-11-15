@@ -1,14 +1,15 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { X, MapPin, Calendar, User, Stethoscope, Clock, Banknote } from 'lucide-react';
+import { X, MapPin, Calendar, User, Stethoscope, Clock, Banknote, Users } from 'lucide-react';
 
 interface SummaryPopupProps {
   isOpen: boolean;
   onClose: () => void;
   bookingData: any;
   isComboFlow?: boolean;
+  isFamilyFlow?: boolean;
 }
 
-export function SummaryPopup({ isOpen, onClose, bookingData, isComboFlow = false }: SummaryPopupProps) {
+export function SummaryPopup({ isOpen, onClose, bookingData, isComboFlow = false, isFamilyFlow = false }: SummaryPopupProps) {
   // Helper functions
   const getLocationName = (locationId: string) => {
     const locationNames: Record<string, string> = {
@@ -20,12 +21,15 @@ export function SummaryPopup({ isOpen, onClose, bookingData, isComboFlow = false
   };
 
   const getProviderName = (providerId: string) => {
+    if (providerId === 'no-preference') {
+      return 'No Preference';
+    }
     const providerNames: Record<string, string> = {
       'johnson': 'Dr. Sarah Johnson',
       'roberts': 'Dr. Michael Roberts',
-      'chen': 'Dr. Chen',
+      'chen': 'Dr. Emily Chen',
       'williams': 'Sarah Williams',
-      'davis': 'Jennifer Davis',
+      'davis': 'Mike Davis',
       'taylor': 'Emily Taylor'
     };
     return providerNames[providerId] || providerId;
@@ -39,6 +43,20 @@ export function SummaryPopup({ isOpen, onClose, bookingData, isComboFlow = false
       day: 'numeric',
       year: 'numeric'
     });
+  };
+
+  const getFamilyAppointmentType = () => {
+    if (bookingData.appointmentType === 'exam-all') {
+      return 'Exam for all';
+    } else if (bookingData.appointmentType === 'hygiene-all') {
+      return 'Hygiene for all';
+    }
+    return '';
+  };
+
+  const getFamilyDepositTotal = () => {
+    const patientCount = bookingData.patientCount || 1;
+    return patientCount * 50; // £50 per patient
   };
 
   return (
@@ -87,8 +105,83 @@ export function SummaryPopup({ isOpen, onClose, bookingData, isComboFlow = false
                 </div>
               )}
 
-              {/* Appointment Type */}
-              {(isComboFlow || bookingData.procedure) && (
+              {/* Family Flow - Patient Count */}
+              {isFamilyFlow && bookingData.patientCount && (
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--booking-primary-light)' }}>
+                    <Users className="w-4 h-4" style={{ color: 'var(--booking-primary)' }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-500">Patients</p>
+                    <p className="text-sm text-gray-900">{bookingData.patientCount} {bookingData.patientCount === 1 ? 'patient' : 'patients'}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Family Flow - Appointment Type */}
+              {isFamilyFlow && bookingData.appointmentType && (
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--booking-primary-light)' }}>
+                    <Stethoscope className="w-4 h-4" style={{ color: 'var(--booking-primary)' }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-500">Appointment Type</p>
+                    <p className="text-sm text-gray-900">{getFamilyAppointmentType()}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Family Flow - Provider */}
+              {isFamilyFlow && bookingData.familyProvider && (
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--booking-primary-light)' }}>
+                    <User className="w-4 h-4" style={{ color: 'var(--booking-primary)' }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-500">Provider</p>
+                    <p className="text-sm text-gray-900">{getProviderName(bookingData.familyProvider)}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Family Flow - Date & Time */}
+              {isFamilyFlow && bookingData.familyDate && (
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--booking-primary-light)' }}>
+                    <Calendar className="w-4 h-4" style={{ color: 'var(--booking-primary)' }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-500">Date & Time</p>
+                    <p className="text-sm text-gray-900">{formatDate(bookingData.familyDate)}</p>
+                    {bookingData.familySlots && bookingData.familySlots.length > 0 && (
+                      <div className="space-y-0.5 mt-1">
+                        {bookingData.familySlots.map((slot: any, index: number) => (
+                          <p key={index} className="text-sm text-gray-600">
+                            {slot.patientName}: {slot.time}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Family Flow - Deposit */}
+              {isFamilyFlow && bookingData.patientCount && (
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--booking-accent-light)' }}>
+                    <Banknote className="w-4 h-4" style={{ color: 'var(--booking-accent)' }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-gray-500">Deposit Required</p>
+                    <p className="text-sm text-gray-900">£{getFamilyDepositTotal()}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">£50 per patient</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Single/Combo Flow - Appointment Type */}
+              {!isFamilyFlow && (isComboFlow || bookingData.procedure) && (
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--booking-primary-light)' }}>
                     <Stethoscope className="w-4 h-4" style={{ color: 'var(--booking-primary)' }} />
@@ -102,8 +195,8 @@ export function SummaryPopup({ isOpen, onClose, bookingData, isComboFlow = false
                 </div>
               )}
 
-              {/* Provider(s) */}
-              {(bookingData.provider || bookingData.comboProviders) && (
+              {/* Single/Combo Flow - Provider(s) */}
+              {!isFamilyFlow && (bookingData.provider || bookingData.comboProviders) && (
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--booking-primary-light)' }}>
                     <User className="w-4 h-4" style={{ color: 'var(--booking-primary)' }} />
@@ -130,8 +223,8 @@ export function SummaryPopup({ isOpen, onClose, bookingData, isComboFlow = false
                 </div>
               )}
 
-              {/* Date & Time */}
-              {bookingData.date && (
+              {/* Single/Combo Flow - Date & Time */}
+              {!isFamilyFlow && bookingData.date && (
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--booking-primary-light)' }}>
                     <Calendar className="w-4 h-4" style={{ color: 'var(--booking-primary)' }} />
@@ -152,8 +245,8 @@ export function SummaryPopup({ isOpen, onClose, bookingData, isComboFlow = false
                 </div>
               )}
 
-              {/* Deposit Required */}
-              {(isComboFlow || bookingData.procedure) && (
+              {/* Single/Combo Flow - Deposit Required */}
+              {!isFamilyFlow && (isComboFlow || bookingData.procedure) && (
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--booking-accent-light)' }}>
                     <Banknote className="w-4 h-4" style={{ color: 'var(--booking-accent)' }} />

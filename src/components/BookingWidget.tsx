@@ -19,7 +19,7 @@ import { PatientDetailsEntryScreen } from './widget/PatientDetailsEntryScreen';
 import { PatientLookupScreen } from './widget/PatientLookupScreen';
 import { ExamProviderScreen } from './widget/ExamProviderScreen';
 import { HygieneProviderScreen } from './widget/HygieneProviderScreen';
-import { ComboDateTimeScreen } from './widget/ComboDateTimeScreen';
+import { ComboSlotSelectionScreen } from './widget/ComboSlotSelectionScreen';
 import { ReturningExamProviderScreen } from './widget/ReturningExamProviderScreen';
 import { ReturningHygieneProviderScreen } from './widget/ReturningHygieneProviderScreen';
 import { FamilySetupScreen } from './widget/FamilySetupScreen';
@@ -28,7 +28,8 @@ import { FamilySlotSelectionScreen } from './widget/FamilySlotSelectionScreen';
 import { FamilyContactInfoScreen } from './widget/FamilyContactInfoScreen';
 import { SingleAppointmentSlotScreen } from './widget/SingleAppointmentSlotScreen';
 import { ReturningProviderScreen } from './widget/ReturningProviderScreen';
-import { ComboSlotSelectionScreen } from './widget/ComboSlotSelectionScreen';
+import { ReturningFamilySetupScreen } from './widget/ReturningFamilySetupScreen';
+import { ReturningFamilyProviderScreen } from './widget/ReturningFamilyProviderScreen';
 
 interface BookingWidgetProps {
   externalIsOpen?: boolean;
@@ -78,7 +79,7 @@ export function BookingWidget({ externalIsOpen, onExternalClose }: BookingWidget
     const isConfirmationScreen = 
       (isComboFlow && currentStep === 10) ||  // Both combo flows now end at step 10
       (!isComboFlow && !isFamilyFlow && currentStep === 11) ||  // Both single flows end at step 11
-      (isFamilyFlow && currentStep === 10);  // Family flows end at step 10
+      (isFamilyFlow && currentStep === 10);  // All family flows end at step 10
     
     if (currentStep === 1 || isConfirmationScreen) {
       closeWidget();
@@ -95,7 +96,7 @@ export function BookingWidget({ externalIsOpen, onExternalClose }: BookingWidget
   // Calculate total steps and progress
   const getTotalSteps = () => {
     if (isComboFlow) return 10;  // Combo flows now have 10 steps (removed Category screen)
-    if (isFamilyFlow) return 10;  // Family flows have 10 steps
+    if (isFamilyFlow) return 10;  // All family flows have 10 steps
     return 11;  // Both single flows have 11 steps
   };
 
@@ -717,6 +718,7 @@ export function BookingWidget({ externalIsOpen, onExternalClose }: BookingWidget
             <FamilySetupScreen 
               onContinue={nextStep} 
               onBack={prevStep} 
+              onClose={handleCloseClick}
               isActive={true} 
             />
           );
@@ -752,12 +754,14 @@ export function BookingWidget({ externalIsOpen, onExternalClose }: BookingWidget
           return (
             <FamilySlotSelectionScreen 
               onContinue={nextStep} 
-              onBack={prevStep} 
+              onBack={prevStep}
+              onClose={handleCloseClick}
               isActive={true}
               appointmentType={bookingData.familyAppointmentType}
               patientCount={bookingData.familyPatientCount}
               location={bookingData.location}
               providerId={bookingData.familyProvider}
+              bookingData={bookingData}
             />
           );
         }
@@ -811,7 +815,7 @@ export function BookingWidget({ externalIsOpen, onExternalClose }: BookingWidget
         }
         if (currentStep === 10) {
           return (
-            <ConfirmationScreen 
+            <FamilyConfirmationScreen 
               bookingData={bookingData} 
               onClose={closeWidget} 
             />
@@ -819,8 +823,193 @@ export function BookingWidget({ externalIsOpen, onExternalClose }: BookingWidget
         }
       }
       
-      // RETURNING PATIENT FAMILY - Not implemented yet
-      return <div className="p-8 text-center text-gray-500">Returning patient family flow - Coming soon...</div>;
+      // RETURNING PATIENT FAMILY FLOW (10 steps)
+      if (isReturningPatient) {
+        if (currentStep === 2) {
+          return (
+            <PatientDetailsEntryScreen 
+              onContinue={nextStep} 
+              onBack={prevStep}
+              onClose={closeWidget}
+              isActive={true} 
+              defaultVerificationMethod="sms" 
+            />
+          );
+        }
+        if (currentStep === 3) {
+          // Combined Patient Lookup + Family Confirmation (if family exists)
+          return (
+            <PatientLookupScreen 
+              onContinue={nextStep}
+              onBack={prevStep}
+              patientData={{
+                firstName: bookingData.firstName || '',
+                lastName: bookingData.lastName || '',
+                phone: bookingData.phone,
+                email: bookingData.email,
+                verificationMethod: bookingData.verificationMethod || 'sms'
+              }}
+              isActive={true}
+              hasFamilyMembers={true}
+              familyMembers={[
+                {
+                  id: 'p1',
+                  firstName: bookingData.firstName || 'John',
+                  lastName: bookingData.lastName || 'Smith',
+                  dateOfBirth: '1985-03-15',
+                  gender: 'male',
+                  relationship: 'primary',
+                  email: bookingData.email || 'john.smith@email.com',
+                  phone: bookingData.phone || '+44 7700 900000'
+                },
+                {
+                  id: 'p2',
+                  firstName: 'Sarah',
+                  lastName: 'Smith',
+                  dateOfBirth: '1987-07-22',
+                  gender: 'female',
+                  relationship: 'spouse'
+                },
+                {
+                  id: 'p3',
+                  firstName: 'Emma',
+                  lastName: 'Smith',
+                  dateOfBirth: '2015-05-10',
+                  gender: 'female',
+                  relationship: 'child'
+                },
+                {
+                  id: 'p4',
+                  firstName: 'Jack',
+                  lastName: 'Smith',
+                  dateOfBirth: '2017-11-03',
+                  gender: 'male',
+                  relationship: 'child'
+                }
+              ]}
+            />
+          );
+        }
+        if (currentStep === 4) {
+          return (
+            <PhoneVerificationScreen 
+              onContinue={nextStep} 
+              onBack={prevStep} 
+              phoneNumber={bookingData.phone || bookingData.email || ''} 
+              isActive={true} 
+            />
+          );
+        }
+        if (currentStep === 5) {
+          return (
+            <ReturningFamilySetupScreen 
+              onContinue={nextStep} 
+              onBack={prevStep} 
+              onClose={handleCloseClick}
+              isActive={true}
+              familyMembers={bookingData.familyMembers || [
+                {
+                  id: 'p1',
+                  firstName: bookingData.firstName || 'John',
+                  lastName: bookingData.lastName || 'Smith',
+                  dateOfBirth: '1985-03-15',
+                  gender: 'male',
+                  relationship: 'primary',
+                  email: bookingData.email || 'john.smith@email.com',
+                  phone: bookingData.phone || '+44 7700 900000'
+                },
+                {
+                  id: 'p2',
+                  firstName: 'Sarah',
+                  lastName: 'Smith',
+                  dateOfBirth: '1987-07-22',
+                  gender: 'female',
+                  relationship: 'spouse'
+                },
+                {
+                  id: 'p3',
+                  firstName: 'Emma',
+                  lastName: 'Smith',
+                  dateOfBirth: '2015-05-10',
+                  gender: 'female',
+                  relationship: 'child'
+                },
+                {
+                  id: 'p4',
+                  firstName: 'Jack',
+                  lastName: 'Smith',
+                  dateOfBirth: '2017-11-03',
+                  gender: 'male',
+                  relationship: 'child'
+                }
+              ]}
+            />
+          );
+        }
+        if (currentStep === 6) {
+          return (
+            <LocationScreen 
+              onContinue={nextStep} 
+              onBack={prevStep}
+              onClose={handleCloseClick}
+              isActive={true} 
+              flow="family"
+              bookingData={bookingData}
+              isComboFlow={isComboFlow}
+            />
+          );
+        }
+        if (currentStep === 7) {
+          return (
+            <ReturningFamilyProviderScreen 
+              onContinue={nextStep} 
+              onBack={prevStep} 
+              onClose={handleCloseClick}
+              isActive={true}
+              appointmentType={bookingData.familyAppointmentType}
+              patientCount={bookingData.familyPatientCount}
+              location={bookingData.location}
+              bookingData={bookingData}
+              usualProviderId="johnson"
+              selectedPatients={bookingData.familyMembers || []}
+            />
+          );
+        }
+        if (currentStep === 8) {
+          return (
+            <FamilySlotSelectionScreen 
+              onContinue={nextStep} 
+              onBack={prevStep}
+              onClose={handleCloseClick}
+              isActive={true}
+              appointmentType={bookingData.familyAppointmentType}
+              patientCount={bookingData.familyPatientCount}
+              location={bookingData.location}
+              providerId={bookingData.familyProvider}
+              bookingData={bookingData}
+            />
+          );
+        }
+        if (currentStep === 9) {
+          return (
+            <PaymentScreen 
+              onContinue={nextStep} 
+              onBack={prevStep}
+              onClose={handleCloseClick}
+              bookingData={bookingData} 
+              isActive={true} 
+            />
+          );
+        }
+        if (currentStep === 10) {
+          return (
+            <ConfirmationScreen 
+              bookingData={bookingData} 
+              onClose={closeWidget} 
+            />
+          );
+        }
+      }
     }
 
     return null;

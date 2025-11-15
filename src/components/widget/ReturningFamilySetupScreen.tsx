@@ -1,36 +1,70 @@
-import { useState } from 'react';
-import { Users, UserPlus, Stethoscope, Sparkles, ChevronRight, DollarSign } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Users, UserPlus, Stethoscope, Sparkles, ChevronRight, User, Check } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { TopBar } from './TopBar';
 
-interface FamilySetupScreenProps {
+interface FamilyMember {
+  id: string;
+  firstName: string;
+  lastName: string;
+  dateOfBirth: string;
+  gender: string;
+  relationship: string; // 'primary' | 'spouse' | 'child' | 'parent' | 'sibling' | 'other'
+  email?: string;
+  phone?: string;
+}
+
+interface ReturningFamilySetupScreenProps {
   onContinue: (data: any) => void;
   onBack: () => void;
   onClose: () => void;
   isActive: boolean;
+  familyMembers: FamilyMember[]; // Family data from database
 }
 
-export function FamilySetupScreen({ onContinue, onBack, onClose, isActive }: FamilySetupScreenProps) {
+export function ReturningFamilySetupScreen({ 
+  onContinue, 
+  onBack, 
+  onClose, 
+  isActive,
+  familyMembers 
+}: ReturningFamilySetupScreenProps) {
   const [bookingFor, setBookingFor] = useState<'me-plus-family' | 'family-only' | null>(null);
-  const [patientCount, setPatientCount] = useState<number>(2);
+  const [selectedPatients, setSelectedPatients] = useState<string[]>([]);
   const [appointmentType, setAppointmentType] = useState<'exam-all' | 'hygiene-all' | null>(null);
   const [showSummaryPopup, setShowSummaryPopup] = useState(false);
 
-  // Handle booking type change and reset patient count appropriately
+  // Find primary patient
+  const primaryPatient = familyMembers.find(m => m.relationship === 'primary');
+
+  // Handle booking type change and auto-select primary if needed
   const handleBookingForChange = (type: 'me-plus-family' | 'family-only') => {
     setBookingFor(type);
-    // Set default count based on booking type
-    if (type === 'me-plus-family') {
-      setPatientCount(2); // Default to 2 for "Me + Family"
+    
+    // Auto-select primary patient if "Me + Family"
+    if (type === 'me-plus-family' && primaryPatient) {
+      setSelectedPatients([primaryPatient.id]);
     } else {
-      setPatientCount(1); // Default to 1 for "Family Only"
+      // Clear selection when switching to "Family Only"
+      setSelectedPatients([]);
     }
   };
 
-  // Handle patient count change
-  const handlePatientCountChange = (count: number) => {
-    setPatientCount(count);
+  // Handle patient selection toggle
+  const handlePatientToggle = (patientId: string) => {
+    // If "Me + Family", primary patient cannot be deselected
+    if (bookingFor === 'me-plus-family' && primaryPatient?.id === patientId) {
+      return; // Do nothing - primary must stay selected
+    }
+
+    setSelectedPatients(prev => {
+      if (prev.includes(patientId)) {
+        return prev.filter(id => id !== patientId);
+      } else {
+        return [...prev, patientId];
+      }
+    });
   };
 
   // Handle appointment type change - AUTO ADVANCE
@@ -41,18 +75,28 @@ export function FamilySetupScreen({ onContinue, onBack, onClose, isActive }: Fam
     setTimeout(() => {
       onContinue({
         familyBookingFor: bookingFor,
-        familyPatientCount: patientCount,
+        selectedPatientIds: selectedPatients,
+        familyPatientCount: selectedPatients.length,
         familyAppointmentType: type,
+        familyMembers: familyMembers.filter(m => selectedPatients.includes(m.id))
       });
     }, 300);
   };
 
-  // Get available patient counts based on booking type
-  const getAvailableCounts = () => {
-    if (bookingFor === 'me-plus-family') {
-      return [2, 3, 4]; // Me + Family: 2-4 people
-    }
-    return [1, 2, 3, 4]; // Family Only: 1-4 people
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-GB', { 
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+
+  // Get relationship display text
+  const getRelationshipText = (relationship: string) => {
+    if (relationship === 'primary') return null;
+    return relationship.charAt(0).toUpperCase() + relationship.slice(1);
   };
 
   const bookingForOptions = [
@@ -156,57 +200,110 @@ export function FamilySetupScreen({ onContinue, onBack, onClose, isActive }: Fam
           </div>
         </div>
 
-        {/* Step 2: Number of Patients - Only show when bookingFor is selected */}
+        {/* Step 2: Patient Selection - Only show when bookingFor is selected */}
         {bookingFor && (
           <div className="space-y-3">
             <div>
-              <h3 className="text-gray-900 mb-1">How many people?</h3>
+              <h3 className="text-gray-900 mb-1">Who needs appointments?</h3>
               <p className="text-xs text-gray-500">
-                {bookingFor === 'me-plus-family' 
-                  ? 'Including yourself (up to 4 total)' 
-                  : 'Family members only (up to 4)'}
+                Select family members who need appointments
               </p>
             </div>
             
-            <div className="grid grid-cols-4 gap-3">
-              {getAvailableCounts().map((count) => {
-                const isSelected = patientCount === count;
+            <div className="space-y-3">
+              {familyMembers.map((member) => {
+                const isSelected = selectedPatients.includes(member.id);
+                const isPrimary = member.relationship === 'primary';
+                const isDisabled = bookingFor === 'me-plus-family' && isPrimary;
+                const relationshipText = getRelationshipText(member.relationship);
+                
                 return (
-                  <button
-                    key={count}
-                    onClick={() => handlePatientCountChange(count)}
-                    className={`p-4 rounded-xl border-2 transition-all ${
+                  <Card
+                    key={member.id}
+                    className={`cursor-pointer transition-all border-2 ${
                       isSelected ? 'shadow-md' : 'hover:shadow-sm'
-                    }`}
+                    } ${isDisabled ? 'opacity-75' : ''}`}
                     style={{
                       borderColor: isSelected ? 'var(--booking-primary)' : '#e5e7eb',
                       background: isSelected ? 'var(--booking-primary-light)' : 'white'
                     }}
+                    onClick={() => handlePatientToggle(member.id)}
                   >
-                    <div className="flex flex-col items-center gap-2">
-                      <div 
-                        className="w-10 h-10 rounded-lg flex items-center justify-center"
-                        style={{
-                          background: isSelected ? 'var(--booking-primary)' : '#f3f4f6'
-                        }}
-                      >
-                        <span className={`${isSelected ? 'text-white' : 'text-gray-600'}`}>
-                          {count}
-                        </span>
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-4">
+                        {/* Checkbox */}
+                        <div 
+                          className="w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all"
+                          style={{
+                            borderColor: isSelected ? 'var(--booking-primary)' : '#d1d5db',
+                            background: isSelected ? 'var(--booking-primary)' : 'white'
+                          }}
+                        >
+                          {isSelected && <Check className="w-4 h-4 text-white" />}
+                        </div>
+
+                        {/* Patient Icon */}
+                        <div 
+                          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                          style={{
+                            background: isSelected ? 'var(--booking-primary)' : '#f3f4f6'
+                          }}
+                        >
+                          <User className={`w-5 h-5 ${isSelected ? 'text-white' : 'text-gray-600'}`} />
+                        </div>
+
+                        {/* Patient Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <h4 className="text-sm text-gray-900">
+                              {member.firstName} {member.lastName}
+                              {isPrimary && <span className="text-gray-500"> (You)</span>}
+                            </h4>
+                            {isDisabled && (
+                              <Badge 
+                                variant="secondary" 
+                                className="text-xs px-2 py-0"
+                                style={{ background: 'var(--booking-primary)', color: 'white', border: 'none' }}
+                              >
+                                Required
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-1 text-xs text-gray-500">
+                            {relationshipText && (
+                              <>
+                                <span>{relationshipText}</span>
+                                <span>•</span>
+                              </>
+                            )}
+                            <span>DOB: {formatDate(member.dateOfBirth)}</span>
+                            <span>•</span>
+                            <span className="capitalize">{member.gender}</span>
+                          </div>
+                        </div>
                       </div>
-                      <span className="text-xs text-gray-500">
-                        {count === 1 ? 'person' : 'people'}
-                      </span>
-                    </div>
-                  </button>
+                    </CardContent>
+                  </Card>
                 );
               })}
             </div>
+
+            {/* Selection count indicator */}
+            {selectedPatients.length > 0 && (
+              <div 
+                className="p-3 rounded-lg flex items-center justify-between"
+                style={{ background: 'var(--booking-primary-light)' }}
+              >
+                <p className="text-xs" style={{ color: 'var(--booking-primary)' }}>
+                  <strong>{selectedPatients.length}</strong> {selectedPatients.length === 1 ? 'patient' : 'patients'} selected
+                </p>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Step 3: Appointment Type - Only show when bookingFor is selected */}
-        {bookingFor && (
+        {/* Step 3: Appointment Type - Only show when patients are selected */}
+        {bookingFor && selectedPatients.length > 0 && (
           <div className="space-y-3">
             <div>
               <h3 className="text-gray-900 mb-1">What type of appointments?</h3>
@@ -217,7 +314,7 @@ export function FamilySetupScreen({ onContinue, onBack, onClose, isActive }: Fam
               {appointmentTypeOptions.map((option) => {
                 const Icon = option.icon;
                 const isSelected = appointmentType === option.id;
-                const totalDeposit = option.depositPerPerson * patientCount;
+                const totalDeposit = option.depositPerPerson * selectedPatients.length;
                 
                 return (
                   <Card

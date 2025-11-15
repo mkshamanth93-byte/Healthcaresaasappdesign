@@ -1,13 +1,14 @@
 import { useState } from 'react';
-import { Check, Star, MapPin, Clock, Users, Handshake } from 'lucide-react';
-import { Card, CardContent } from '../ui/card';
+import { Star, Users, Heart, Handshake, Clock } from 'lucide-react';
 import { Badge } from '../ui/badge';
+import { Card, CardContent } from '../ui/card';
 import { ImageWithFallback } from '../figma/ImageWithFallback';
+import { BottomCTA } from './BottomCTA';
 import { TopBar } from './TopBar';
 import { SummaryPopup } from './SummaryPopup';
 import { FloatingCloseButton } from './FloatingCloseButton';
 
-interface FamilyProviderScreenProps {
+interface ReturningFamilyProviderScreenProps {
   onContinue: (data: any) => void;
   onBack: () => void;
   onClose: () => void;
@@ -16,9 +17,11 @@ interface FamilyProviderScreenProps {
   patientCount: number;
   location: string;
   bookingData: any;
+  usualProviderId?: string; // ID of the usual provider (if any)
+  selectedPatients?: any[]; // Selected family members
 }
 
-export function FamilyProviderScreen({ 
+export function ReturningFamilyProviderScreen({ 
   onContinue, 
   onBack, 
   onClose,
@@ -26,9 +29,11 @@ export function FamilyProviderScreen({
   appointmentType,
   patientCount,
   location,
-  bookingData
-}: FamilyProviderScreenProps) {
-  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
+  bookingData,
+  usualProviderId = 'johnson', // Default for demo
+  selectedPatients = []
+}: ReturningFamilyProviderScreenProps) {
+  const [selectedProvider, setSelectedProvider] = useState<string>(usualProviderId);
   const [showSummaryPopup, setShowSummaryPopup] = useState(false);
 
   // Determine provider type based on appointment type
@@ -51,8 +56,8 @@ export function FamilyProviderScreen({
       specialties: ['General Dentistry', 'Cosmetic'],
       profilePhoto: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&h=400&fit=crop',
       coverPhoto: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=800&h=200&fit=crop',
-      bio: 'Specializes in cosmetic dentistry and smile transformations with gentle, personalized care.',
-      designations: ['FAGD', 'Invisalign Certified', 'Cosmetic Expert'],
+      bio: 'Specializes in family dentistry and creating comfortable experiences for patients of all ages.',
+      designations: ['FAGD', 'Invisalign Certified', 'Family Dentistry'],
       badge: ''
     },
     {
@@ -69,7 +74,7 @@ export function FamilyProviderScreen({
       specialties: ['General Dentistry', 'Preventive'],
       profilePhoto: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&h=400&fit=crop',
       coverPhoto: 'https://images.unsplash.com/photo-1606811971618-4486d14f3f99?w=800&h=200&fit=crop',
-      bio: 'Board-certified orthodontist creating beautiful, healthy smiles using the latest technology.',
+      bio: 'Board-certified orthodontist with expertise in treating multiple family members simultaneously.',
       designations: ['Board Certified', 'Invisalign Diamond', 'ABO Diplomate'],
       badge: ''
     },
@@ -87,7 +92,7 @@ export function FamilyProviderScreen({
       specialties: ['General Dentistry', 'Orthodontics'],
       profilePhoto: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=400&h=400&fit=crop',
       coverPhoto: 'https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=800&h=200&fit=crop',
-      bio: 'Creates a fun, comfortable environment for children making dental visits enjoyable.',
+      bio: 'Creates a fun, comfortable environment for children and families, making dental visits enjoyable.',
       designations: ['Pediatric Specialist', 'AAPD Member', 'Sedation Certified'],
       badge: 'Popular'
     },
@@ -108,7 +113,7 @@ export function FamilyProviderScreen({
       specialties: ['Cleaning', 'Preventive Care'],
       profilePhoto: 'https://images.unsplash.com/photo-1565090567208-c8038cfcf6cd?w=400&h=400&fit=crop',
       coverPhoto: 'https://images.unsplash.com/photo-1762625570087-6d98fca29531?w=800&h=200&fit=crop',
-      bio: 'Passionate about preventive care and creating comfortable dental experiences.',
+      bio: 'Passionate about preventive care and creating comfortable dental experiences for the whole family.',
       designations: ['RDH Certified', 'Preventive Care Specialist'],
       badge: ''
     },
@@ -126,7 +131,7 @@ export function FamilyProviderScreen({
       specialties: ['Deep Cleaning', 'Gum Care'],
       profilePhoto: 'https://images.unsplash.com/photo-1758205308181-d52b41e00cef?w=400&h=400&fit=crop',
       coverPhoto: 'https://images.unsplash.com/photo-1704455306925-1401c3012117?w=800&h=200&fit=crop',
-      bio: 'Specializes in periodontal care and advanced cleaning techniques.',
+      bio: 'Specializes in periodontal care and advanced cleaning techniques for patients of all ages.',
       designations: ['Periodontal Specialist', 'Advanced Techniques'],
       badge: 'Experienced'
     },
@@ -144,7 +149,7 @@ export function FamilyProviderScreen({
       specialties: ['Cleaning', 'Polishing'],
       profilePhoto: 'https://images.unsplash.com/photo-1565090567208-c8038cfcf6cd?w=400&h=400&fit=crop',
       coverPhoto: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=800&h=200&fit=crop',
-      bio: 'Creates a welcoming environment and focuses on patient education.',
+      bio: 'Creates a welcoming environment and focuses on patient education for the entire family.',
       designations: ['Patient Education Specialist', 'Gentle Care'],
       badge: ''
     },
@@ -161,25 +166,41 @@ export function FamilyProviderScreen({
     isNoPreference: true
   };
 
-  // Add No Preference as the first option
-  const allProviders = [noPreferenceOption, ...providers];
+  // Find the usual provider
+  const usualProvider = providers.find(p => p.id === usualProviderId);
+
+  // Organize providers: Usual first, then No Preference, then others
+  const organizedProviders = usualProvider
+    ? [usualProvider, noPreferenceOption, ...providers.filter(p => p.id !== usualProviderId)]
+    : [noPreferenceOption, ...providers];
 
   const handleProviderSelect = (providerId: string) => {
     setSelectedProvider(providerId);
     
-    // Auto-advance after selection
-    setTimeout(() => {
-      onContinue({
-        familyProvider: providerId,
-      });
-    }, 300);
+    // Auto-advance logic:
+    // If user changed from usual provider → auto-advance
+    // If usual provider is still selected → Keep CTA button (requires confirmation)
+    const shouldAutoAdvance = providerId !== usualProviderId;
+    
+    if (shouldAutoAdvance) {
+      setTimeout(() => {
+        onContinue({
+          familyProvider: providerId,
+        });
+      }, 300);
+    }
   };
 
-  const locationNames: Record<string, string> = {
-    'downtown': 'Downtown',
-    'westside': 'Westside',
-    'eastside': 'Eastside'
+  const handleContinue = () => {
+    if (selectedProvider) {
+      onContinue({
+        familyProvider: selectedProvider,
+      });
+    }
   };
+
+  // Show Continue button only if usual provider is still selected
+  const showContinueButton = selectedProvider === usualProviderId;
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
@@ -198,9 +219,10 @@ export function FamilyProviderScreen({
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
         {/* Providers List */}
         <div className="space-y-4">
-          {allProviders.map((provider) => {
+          {organizedProviders.map((provider) => {
             const isSelected = selectedProvider === provider.id;
             const isNoPreference = provider.id === 'no-preference';
+            const isUsualProvider = provider.id === usualProviderId;
             
             // No Preference - Simple design
             if (isNoPreference) {
@@ -263,7 +285,18 @@ export function FamilyProviderScreen({
                     backgroundPosition: 'center'
                   }}
                 >
-                  {provider.badge && (
+                  {/* Your Usual Provider Tag */}
+                  {isUsualProvider && (
+                    <div className="absolute top-3 right-3">
+                      <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/95 backdrop-blur-sm rounded-full shadow-sm">
+                        <Heart className="w-3.5 h-3.5 text-red-500 fill-current" />
+                        <span className="text-xs text-gray-900">
+                          Your Usual {providerTypeLabel}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {provider.badge && !isUsualProvider && (
                     <Badge 
                       className="absolute top-2 right-2 text-xs px-2 py-0.5"
                       style={{ background: 'var(--booking-accent)', color: 'white', border: 'none' }}
@@ -372,6 +405,15 @@ export function FamilyProviderScreen({
         </Card>
       </div>
 
+      {/* Bottom CTA - Only show when usual provider is selected */}
+      {showContinueButton && (
+        <BottomCTA
+          onContinue={handleContinue}
+          onBack={onBack}
+          continueDisabled={!selectedProvider}
+        />
+      )}
+
       {/* Summary Popup */}
       <SummaryPopup 
         isOpen={showSummaryPopup}
@@ -381,8 +423,8 @@ export function FamilyProviderScreen({
         isFamilyFlow={true}
       />
 
-      {/* Floating Close Button */}
-      <FloatingCloseButton onClose={onClose} />
+      {/* Floating Close Button - Only show when CTA is hidden */}
+      {!showContinueButton && <FloatingCloseButton onClose={onClose} />}
     </div>
   );
 }

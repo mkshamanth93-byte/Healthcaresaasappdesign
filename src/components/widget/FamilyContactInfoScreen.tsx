@@ -427,7 +427,11 @@ export function FamilyContactInfoScreen({
                           value={primaryPatient.dateOfBirth}
                           onChange={(e) => updatePrimaryPatient('dateOfBirth', e.target.value)}
                           className="h-12 px-4 border-2 rounded-xl text-sm"
-                          style={{ borderColor: '#e5e7eb' }}
+                          style={{ 
+                            borderColor: '#e5e7eb',
+                            color: primaryPatient.dateOfBirth ? '#1f2937' : '#9ca3af'
+                          }}
+                          max={new Date().toISOString().split('T')[0]}
                         />
                       </div>
 
@@ -547,7 +551,11 @@ export function FamilyContactInfoScreen({
                       value={additionalPatients[currentPatientIndex - 1].dateOfBirth}
                       onChange={(e) => updateAdditionalPatient(currentPatientIndex - 1, 'dateOfBirth', e.target.value)}
                       className="h-12 px-4 border-2 rounded-xl text-sm"
-                      style={{ borderColor: '#e5e7eb' }}
+                      style={{ 
+                        borderColor: '#e5e7eb',
+                        color: additionalPatients[currentPatientIndex - 1].dateOfBirth ? '#1f2937' : '#9ca3af'
+                      }}
+                      max={new Date().toISOString().split('T')[0]}
                     />
                   </div>
 

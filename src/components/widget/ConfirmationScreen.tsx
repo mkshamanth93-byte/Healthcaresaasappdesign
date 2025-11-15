@@ -14,6 +14,12 @@ export function ConfirmationScreen({ bookingData, onClose }: ConfirmationScreenP
   
   // Get family patients
   const getFamilyPatients = () => {
+    // Returning patient family flow - uses familyMembers directly
+    if (bookingData.familyMembers && Array.isArray(bookingData.familyMembers)) {
+      return bookingData.familyMembers;
+    }
+    
+    // New patient family flow - uses familyContactInfo
     if (bookingData.familyContactInfo) {
       // For "Family Only", exclude the booker (primaryPatient) from the patient list
       if (isFamilyOnly) {
@@ -26,6 +32,8 @@ export function ConfirmationScreen({ bookingData, onClose }: ConfirmationScreenP
       }
       return patients;
     }
+    
+    // Fallback
     return bookingData.patients || [];
   };
 

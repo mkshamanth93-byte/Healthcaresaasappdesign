@@ -1,106 +1,99 @@
-To elevate your Figma Make agent’s output quality, especially avoiding rookie alignment issues, visual inconsistencies, and weak spacing discipline — you can enrich your System Guidelines file with precise UI behavior expectations, visual standards, and a temporary color palette structure.
+# UI Guidelines: Dashboard Layout and Architecture (DentalCRM)
 
-Here’s how to revise and expand that file effectively 👇
+This document defines the design, interaction, and component structure for the DentalCRM dashboard as implemented in the latest `App.tsx`.
 
-⸻
+---
 
-✅ REVISED SYSTEM GUIDELINES FOR FIGMA MAKE
+## 🧱 Layout Structure
 
-⸻
+The Dashboard follows a **3-part structure**:
 
-# General Guidelines
-	•	Never sacrifice visual alignment for speed.
-	•	All elements must be pixel-perfectly aligned, especially icons, numbers, and text labels.
-	•	Padding around buttons and boxes must be uniform, following an 8px spacing rule as the baseline unit.
-	•	Use Flexbox or Auto Layout for all groupings.
-	•	Never rely on manual positioning of text or buttons. All buttons, badges, icons, and tags must be built within properly defined containers.
-	•	Maintain visual rhythm.
-	•	Use consistent vertical and horizontal spacing (8, 16, 24, 32, 40px) unless explicitly stated otherwise.
-	•	Use white space intentionally to create scannable, breathable designs.
-	•	Avoid crowding.
-	•	No button should have text that touches its borders. Minimum padding for button labels:
-	•	Horizontal: 16px
-	•	Vertical: 10–12px
+1. **Mobile Header (`lg:hidden`)**
+   - Fixed at top for small screens.
+   - Includes logo, title, and mobile menu toggle.
+   - Toggle controlled via `mobileMenuOpen` state.
 
-⸻
+2. **Sidebar Navigation (Desktop & Mobile)**
+   - Persistent on desktop, collapsible on mobile.
+   - Uses `navigation` array to render links dynamically.
+   - Supports badges (`premium`, `new`) and icon status.
 
-# Design System Guidelines
+3. **Main Content**
+   - Contains:
+     - Sticky header (with `RefinedUniversalSearch`, `OrgSwitcher`, `LocationSwitcher`, notifications, calendar, profile).
+     - Scrollable main area:
+       - Metrics Grid
+       - Two-column layout:
+         - Left: Priorities, Pipeline, Appointments
+         - Right: AI Insights, Hot Deals, Monthly Goals
 
-## Typography
-	•	Base font size: 14px
-	•	Headings:
-	•	H1: 24px, Bold
-	•	H2: 20px, Semi-bold
-	•	H3: 16px, Semi-bold
-	•	Line height: 1.5x font size
+---
 
-## Date & Number Alignment
-	•	Numeric fields (dates, prices, times) must be right-aligned inside containers.
-	•	Dates should never float — anchor them to aligned baselines (use grid or Auto Layout).
-	•	Actionable dates should always be grouped with contextual icons (calendar, clock) for clarity.
+## ⚛️ Key Components
 
-⸻
+| Component                      | Description |
+|-------------------------------|-------------|
+| `RefinedUniversalSearch`      | Top search with type-selectable results. |
+| `RefinedCalendarButton`       | Opens calendar drawer on click. |
+| `RefinedCalendarDrawerFull`   | Full-page calendar modal. |
+| `RefinedNotificationsBell`    | Notification badge + drawer trigger. |
+| `RefinedNotificationsDrawer`  | Right drawer for viewing alerts. |
+| `RefinedOrgSwitcher`          | Org select dropdown. |
+| `RefinedLocationSwitcher`     | Location select dropdown. |
+| `WhatsNewPanel`               | Shows new feature highlights. |
 
-## Buttons
+---
 
-### Padding
-	•	Minimum padding:
-	•	Vertical: 10px
-	•	Horizontal: 16px
+## 📊 State Variables
 
-### Spacing
-	•	Keep consistent spacing between:
-	•	Buttons and adjacent elements (minimum 16px)
-	•	Button text and edge of the button
-	•	Do not allow label text (e.g. “Pay Now”) to touch button edges
-
-### Layout
-	•	Back and Continue buttons must:
-	•	Be on the same horizontal row
-	•	Be bottom-sticky to the panel (position: fixed / Auto Layout inside a sticky bottom container)
-
-⸻
-
-## Box & Container Rules
-	•	Use rounded corners consistently (e.g., 8px or 12px radius)
-	•	No card/container should be misaligned relative to others in the same visual stack.
-	•	Box shadows should be subtle and used only to create hierarchy.
-
-⸻
-
-🎨 Color System (Temp Placeholder – until Branding Panel is set)
-
-Use the following two-color palette, each with five shades, until full branding is integrated:
-
-Primary Color (Blue)
-	•	Blue 100: #E6F0FF
-	•	Blue 200: #B3D1FF
-	•	Blue 300: #4D94FF
-	•	Blue 400: #1A73E8
-	•	Blue 500: #0B5ED7
-
-Secondary Color (Purple)
-	•	Purple 100: #F3E8FF
-	•	Purple 200: #D1B3FF
-	•	Purple 300: #A64DFF
-	•	Purple 400: #8A2BE2
-	•	Purple 500: #6A1B9A
-	•	Use lighter shades for backgrounds and accents
-	•	Use darker shades for CTAs, borders, and icons
-	•	Stick to max 2–3 colors per screen to avoid visual noise
-
-⸻
-
-🛠 Component Build Guidelines
-
-Component	Rules
-Card Layout	Use consistent padding inside (16px); maintain visual balance
-Badge/Tag	8px padding, text centered, never wrap text
-CTA Button	Use primary color only for main actions, secondary for alternatives
-Accordion	Use only for 3+ collapsible sections; maintain clear separators
-Floating Elements	All cards and panels must feel like they hover above content; use subtle drop shadows and translucent panels
+```tsx
+const [activeNav, setActiveNav] = useState('/dashboard')
+const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+const [notificationsOpen, setNotificationsOpen] = useState(false)
+const [calendarOpen, setCalendarOpen] = useState(false)
 
 
 ⸻
 
-Let me know if you’d like this as a .figma.json system file or for me to prep this into a Notion doc, PDF, or comment-ready snippet for your workspace.
+🔄 Interaction Logic
+	•	Clicking on a nav item updates activeNav and closes mobile menu.
+	•	Avatar menu uses DropdownMenu from UI primitives.
+	•	RefinedCalendarDrawerFull and RefinedNotificationsDrawer visibility toggled by boolean states.
+	•	AvatarFallback initials are derived from hardcoded name for now (e.g. DK).
+
+⸻
+
+📁 File & Directory Best Practices
+
+All refined components should be located in /components and follow:
+	•	refined-* naming for shared logic UI
+	•	ui/ directory for styled reusable primitives (Button, Card, Badge, etc.)
+	•	Follow file colocation: components should be grouped logically
+
+⸻
+
+💡 Developer Notes
+	•	Keep all SVGs and icons clean, use lucide-react icons.
+	•	Transition and hover animations are defined at tailwind level (e.g. group-hover, transition-all).
+	•	Avoid deeply nested state unless lifting is necessary.
+	•	Metrics are currently static, but ready to be connected to backend via props or context.
+
+⸻
+
+🗂️ Metrics and Insights Data (Mock)
+
+The following props are populated with mock data:
+	•	metrics: Total Revenue, Active Deals, etc.
+	•	priorities: Task items with urgency and contact.
+	•	insights: AI-driven recommendations.
+	•	appointments, pipeline, hot deals: mock patient or deal cards.
+
+Use this data structure for initial scaffolding of backend integration.
+
+⸻
+
+✅ TODO for Backend/Frontend Agents
+	•	Replace mock metrics, priorities, insights with API-driven values.
+	•	Modularize dashboard sections into their own files under /components/dashboard/.
+	•	Add context/provider for global dashboard data refresh.
+	•	Integrate with patient activity logs, deal states, and analytics.

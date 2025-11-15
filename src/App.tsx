@@ -1,10 +1,18 @@
 import { BookingWidget } from './components/BookingWidget';
+import AdminApp from './AdminApp';
 import { useState } from 'react';
 import damiraHero from 'figma:asset/adcde12fb13046ee8350481ba848d42915b9deef.png';
 
 export default function App() {
   const [isBookingOpen, setIsBookingOpen] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
 
+  // Toggle between admin and main site
+  if (showAdmin) {
+    return <AdminApp onBackToSite={() => setShowAdmin(false)} />;
+  }
+
+  // Otherwise, render the booking widget landing page
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-purple-50/30">
       {/* Mock Website Content - Damira Dental Style */}
@@ -21,6 +29,12 @@ export default function App() {
             <a href="#" className="hover:text-gray-900 transition-colors">About</a>
             <a href="#" className="hover:text-gray-900 transition-colors">Team</a>
             <a href="#" className="hover:text-gray-900 transition-colors">Contact</a>
+            <button 
+              onClick={() => setShowAdmin(true)}
+              className="px-4 py-2 bg-slate-900 text-white rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              Admin Dashboard
+            </button>
           </nav>
         </div>
       </header>
